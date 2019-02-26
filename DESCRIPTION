@@ -1,11 +1,11 @@
 Package: CCInx
 Type: Package
-Title: What the Package Does (Title Case)
+Title: Predict cell-cell interaction networks from single-cell data
 Version: 0.1.0
-Author: Who wrote it
-Maintainer: The package maintainer <yourself@somewhere.net>
+Authors@R: c(as.person("Brendan T. Innes <brendan.innes@mail.utoronto.ca> [aut,cre]"),
+             as.person("Gary D. Bader [aut,ths]"))
 Description: More about what it does (maybe more than one line)
     Use four spaces when indenting paragraphs within the Description.
-License: What license is it under?
+License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
