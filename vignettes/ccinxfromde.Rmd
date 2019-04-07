@@ -62,10 +62,11 @@ head(inx$`DOPA~GABA`$edges)
 head(inx$`DOPA~GABA`$nodes)
 ```
 
-```{r Plot CCInx}
+```{r Plot CCInx, fig.height=5, fig.width=7}
 PlotCCInx(INX=inx,
-          cellTypeA="GABA",cellTypeB="GABA",
-          proteinTypeA="Receptor",proteinTypeB="Ligand")
+          cellTypeA="GABA",cellTypeB="DOPA",
+          proteinTypeA="Receptor",proteinTypeB="Ligand",
+          TopEdges=50)
 ```
 
 ```{r eval=FALSE, include=FALSE}
