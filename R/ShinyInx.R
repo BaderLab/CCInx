@@ -16,7 +16,7 @@
 ViewCCInx <- function(INX,imageFileType="pdf",...) {
   if (!is.list(INX) |
       !all(grepl("~",names(INX))) |
-      !all(sapply(inx,function(X) all(c("edges","nodes") %in% names(X))))) {
+      !all(sapply(INX,function(X) all(c("edges","nodes") %in% names(X))))) {
     stop("INX must be the output of the function CCInx::BuildCCInx()")
   }
 

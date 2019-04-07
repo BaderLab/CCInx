@@ -20,23 +20,23 @@
 #'
 
 CheckDE <- function(gdb,DEmagn,DEstat) {
-  if (any( is.na(gdb[[DEmagn]]) | abs(gdb[[DEmagn]]) == Inf )) {
-    stop(paste("This function doesn't tolerate missing or infinite",
+  if (any( is.na(gdb[[DEmagn]]) )) {
+    stop(paste("This function doesn't tolerate missing",
                DEmagn,"values."))
   }
   if (any( is.na(gdb[[DEstat]]) )) {
-    stop(paste("This function doesn't tolerate missing or infinite",
+    stop(paste("This function doesn't tolerate missing",
                DEstat,"values."))
   }
-  # if (any(gdb[[DEstat]] <= 0)) {
-  #   gdb[[DEstat]][gdb[[DEstat]] == 0] <-
-  #     10^-ceiling(-log10(min(gdb[[DEstat]][gdb[[DEstat]] > 0])))
-  # }
-  # gdb$SigScore <- -log10(gdb[[DEstat]])
-  gdb$DEscaled <- sapply(gdb[[DEmagn]],function(X)
-    X / switch(as.character(X >= 0),
-               "TRUE"=max(gdb[[DEmagn]]),
-               "FALSE"=min(gdb[[DEmagn]]) * -1))
+  gdb$DEscaled <- sapply(gdb[[DEmagn]],function(X) {
+    if (is.infinite(X)) {
+      X
+    } else {
+      X / switch(as.character(X >= 0),
+                 "TRUE"=max(gdb[[DEmagn]][!is.infinite(gdb[[DEmagn]])]),
+                 "FALSE"=min(gdb[[DEmagn]][!is.infinite(gdb[[DEmagn]])]) * -1)
+    }
+  })
   return(gdb)
 }
 
@@ -76,6 +76,15 @@ BuildCCInx <- function(GeneStatList,
                        GeneMagnitude,
                        GeneStatistic,
                        Species="hsapiens") {
+  if (length(names(GeneStatList)) != length(GeneStatList)) {
+    stop("GeneStatList must be a named list where names are cell types.")
+  }
+  if (any(duplicated(names(GeneStatList)))) {
+    stop("GeneStatList names must be unique.")
+  }
+  if (any(grepl("_",names(GeneStatList)))) {
+    stop("GeneStatList names must not contain '_' due to internal naming conventions.")
+  }
   message("Checking input data...")
   if (missing(GeneStatistic)) {
     GeneStatList <- pbapply::pbsapply(X=GeneStatList,
