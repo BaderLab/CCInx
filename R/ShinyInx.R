@@ -41,21 +41,26 @@ ViewCCInx <- function(INX,imageFileType="pdf",...) {
         )
       ),
       fluidRow(
-        column(9,
-               radioButtons("WhichFilter","Filter nodes:",inline=T,
-                            choices=c("All","Stat","Magnitude","Top n","Genes")),
-               uiOutput("Filter")
+        column(4,
+               radioButtons("WhichFilter","Filter nodes:",inline=F,
+                            choices=c("All","Statistic","Magnitude","Top Edges","Genes"))
         ),
-        column(3,align="right",
-               radioButtons("YSpacing","Y-axis:",
-                            choices=list(Relative="relative",
-                                         Absolute="absolute")),
-               downloadButton("PlotSave",paste("Save as",toupper(imageFileType)))
+        column(8,
+               uiOutput("Filter")
         )
       ),
-
+      fluidRow(
+        column(7,
+               radioButtons("YSpacing","Y-axis:",inline=T,
+                            choices=list(Relative="relative",
+                                         Absolute="absolute"))
+        ),
+        column(5,
+               downloadButton("PlotSave",paste("Save as",toupper(imageFileType))),
+               align="right")
+      )
       #### TESTING ####
-      textOutput("TEST")
+      # textOutput("TEST")
     ),
     mainPanel(
       plotOutput("CCInx",height="800px")
@@ -76,19 +81,19 @@ ViewCCInx <- function(INX,imageFileType="pdf",...) {
 
     output$Filter <- renderUI({
       switch(input$WhichFilter,
-             "Stat"=numericInput("GeneStatistic",
-                                      label=paste0("Maximum ",attr(temp_inx(),"GeneStatistic"),":"),
-                                      value=0.05),
+             "Statistic"=numericInput("GeneStatistic",
+                                 label=paste0("Maximum ",attr(temp_inx(),"GeneStatistic"),":"),
+                                 value=0.05),
              "Magnitude"=numericInput("GeneMagnitude",
                                       label=paste0("Minumum absolute ",attr(temp_inx(),"GeneMagnitude"),":"),
                                       value=.1),
-             "Top n"=numericInput("TopN",
-                                      label=paste0("Top n edges by mean ",
-                                                   attr(temp_inx(),"GeneMagnitude"),
-                                                   " of nodes:"),
-                                      value=20),
+             "Top Edges"=numericInput("TopN",
+                                  label=paste0("Top n edges by mean ",
+                                               attr(temp_inx(),"GeneMagnitude"),
+                                               " of nodes:"),
+                                  value=20),
              "Genes"=selectInput("GeneNames",label="Search by gene symbols:",
-                                      choices=temp_inx()$nodes$gene,multiple=T)
+                                 choices=temp_inx()$nodes$gene,multiple=T)
       )
     })
 
@@ -103,17 +108,17 @@ ViewCCInx <- function(INX,imageFileType="pdf",...) {
     temp_inx2 <- reactive({
       switch(input$WhichFilter,
              "All"=temp_inx(),
-             "Stat"=FilterInx_GeneStatistic(temp_inx(),input$GeneStatistic),
+             "Statistic"=FilterInx_GeneStatistic(temp_inx(),input$GeneStatistic),
              "Magnitude"=FilterInx_GeneMagnitude(temp_inx(),input$GeneMagnitude),
-             "Top n"=FilterInx_topN(temp_inx(),input$TopN),
+             "Top Edges"=FilterInx_topN(temp_inx(),input$TopN),
              "Genes"=FilterInx_genenames(temp_inx(),
-                                              unique(unlist(strsplit(input$GeneNames," |,"))))
+                                         unique(unlist(strsplit(input$GeneNames," |,"))))
       )
     })
 
 
     output$CCInx <- renderPlot({
-      DoPlotInx(temp_inx2(),input$YSpacing)
+      DoPlotInx(temp_inx2()) #,input$YSpacing)
     },res=96)
 
     output$PlotSave <- downloadHandler(
@@ -129,7 +134,7 @@ ViewCCInx <- function(INX,imageFileType="pdf",...) {
                "eps"=grDevices::cairo_ps(file,height=8,width=7,fallback_resolution=600),
                "tiff"=grDevices::tiff(file,height=8,width=7,units="in",res=600),
                "png"=grDevices::png(file,height=8,width=7,units="in",res=600))
-        DoPlotInx(temp_inx2(),input$YSpacing)
+        DoPlotInx(temp_inx2()) #,input$YSpacing)
         grDevices::dev.off()
       }
     )

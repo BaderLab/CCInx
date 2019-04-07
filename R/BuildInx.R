@@ -29,8 +29,10 @@ CheckDE <- function(gdb,DEmagn,DEstat) {
                DEstat,"values."))
   }
   gdb$DEscaled <- sapply(gdb[[DEmagn]],function(X) {
-    if (is.infinite(X)) {
-      X
+    if (X == Inf) {
+      1.1
+    } else if (X == -Inf) {
+      -1.1
     } else {
       X / switch(as.character(X >= 0),
                  "TRUE"=max(gdb[[DEmagn]][!is.infinite(gdb[[DEmagn]])]),

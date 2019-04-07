@@ -130,33 +130,47 @@ DoPlotInx <- function(INX,ySpacing) {
 
   if (ySpacing == "relative") {
     temp <- INX$nodes[,attr(INX,"GeneMagnitude")]
+    temp[temp == Inf] <- max(temp[temp < Inf]) * 1.1
+    temp[temp == -Inf] <- min(temp[temp > -Inf]) * 1.1
     p <- INX$nodes$side == "A"
-    temp[p] <- seq(min(temp),max(temp),length.out=sum(p))[rank(temp[p])]
+    temp[p] <- seq(min(temp),max(temp),length.out=sum(p))[rank(temp[p],ties.method="first")]
     p <- INX$nodes$side == "B"
-    temp[p] <- seq(min(temp),max(temp),length.out=sum(p))[rank(temp[p])]
+    temp[p] <- seq(min(temp),max(temp),length.out=sum(p))[rank(temp[p],ties.method="first")]
     INX$nodes$y <- temp
   } else {
     INX$nodes$y <- INX$nodes[,attr(INX,"GeneMagnitude")]
+    INX$nodes$y[INX$nodes$y == Inf] <- max(INX$nodes$y[INX$nodes$y < Inf]) * 1.1
+    INX$nodes$y[INX$nodes$y == -Inf] <- min(INX$nodes$y[INX$nodes$y > -Inf]) * 1.1
   }
 
   temp_b <- INX$nodes[,attr(INX,"GeneMagnitude")] <= 0
   if (any(temp_b)) {
-    temp_bc <- cut(c(0,INX$nodes[temp_b,attr(INX,"GeneMagnitude")]),50)[-1]
-    INX$nodes$col[temp_b] <- colourScheme[1:50][temp_bc]
+    if (any(is.infinite(INX$nodes[temp_b,attr(INX,"GeneMagnitude")]))) {
+      temp_bc <- INX$nodes[temp_b,attr(INX,"GeneMagnitude")]
+      temp_bc[is.infinite(temp_bc)] <- min(temp_bc[!is.infinite(temp_bc)]) * 1.1
+      temp_bc <- cut(c(0,temp_bc),50,labels=F)[-1]
+    } else {
+      temp_bc <- cut(c(0,INX$nodes[temp_b,attr(INX,"GeneMagnitude")]),50,labels=F)[-1]
+    }
+    INX$nodes$col[temp_b] <- temp_bc
   }
   temp_a <- INX$nodes[,attr(INX,"GeneMagnitude")] > 0
   if (any(temp_a)) {
-    temp_ac <- cut(c(0,INX$nodes[temp_a,attr(INX,"GeneMagnitude")]),50)[-1]
-    INX$nodes$col[temp_a] <- colourScheme[51:100][temp_ac]
+    if (any(is.infinite(INX$nodes[temp_a,attr(INX,"GeneMagnitude")]))) {
+      temp_ac <- INX$nodes[temp_a,attr(INX,"GeneMagnitude")]
+      temp_ac[is.infinite(temp_ac)] <- max(temp_ac[!is.infinite(temp_ac)]) * 1.1
+      temp_ac <- cut(c(0,temp_ac),50,labels=F)[-1]
+    } else {
+      temp_ac <- cut(c(0,INX$nodes[temp_a,attr(INX,"GeneMagnitude")]),50,labels=F)[-1]
+    }
+    INX$nodes$col[temp_a] <- temp_ac + 50
   }
 
   INX$nodes$signif <- cut(INX$nodes[,attr(INX,"GeneStatistic")],
                           breaks=c(1,.05,.01,.001,.0001,0),
                           right=T,include.lowest=T)
-  INX$nodes$border_col <- c("gray0","gray25","gray50","gray75","gray100")[INX$nodes$signif]
 
-  INX$edges$col <- scales::alpha(colourScheme,
-                                 seq(.5,1,length.out=100))[cut(c(1,-1,INX$edges$meanDEscaled),100)[-1:-2]]
+  INX$edges$col <- cut(c(1,-1,INX$edges$meanDEscaled),100,labels=F)[-1:-2]
   INX$edges$lwd <- seq(2,6)[cut(c(0,1,abs(INX$edges$meanDEscaled)),5,labels=F)[-1:-2]]
 
 
@@ -164,15 +178,19 @@ DoPlotInx <- function(INX,ySpacing) {
   plot(x=NULL,y=NULL,xlim=c(0,7),ylim=range(INX$nodes$y),
        xaxs="i",xaxt="n",yaxt="n",bty="n",
        xlab=NA,ylab=NA)
-  temp_junk <- apply(INX$edges,1,function(X)
-    lines(x=INX$nodes[X[c("nodeA","nodeB")],"x"],
-          y=INX$nodes[X[c("nodeA","nodeB")],"y"],
-          col=X["col"],lwd=X["lwd"])
+  temp_junk <- sapply(rownames(INX$edges),function(X)
+    lines(x=INX$nodes[unlist(INX$edges[X,c("nodeA","nodeB")]),"x"],
+          y=INX$nodes[unlist(INX$edges[X,c("nodeA","nodeB")]),"y"],
+          col=scales::alpha(colourScheme,
+                            seq(.3,.8,length.out=100))[INX$edges[X,"col"]],
+          lwd=INX$edges[X,"lwd"])
   )
   points(x=INX$nodes$x,y=INX$nodes$y,
-         pch=19,cex=2,col=INX$nodes$col)
+         pch=19,cex=2,
+         col=colourScheme[INX$nodes$col])
   points(x=INX$nodes$x,y=INX$nodes$y,
-         pch=1,cex=2,lwd=2,col=INX$nodes$border_col)
+         pch=1,cex=2,lwd=2,
+         col=c("gray0","gray25","gray50","gray75","gray100")[INX$nodes$signif])
   text(x=INX$nodes$x[INX$nodes$side == "A"],
        y=INX$nodes$y[INX$nodes$side == "A"],
        labels=INX$nodes$gene[INX$nodes$side == "A"],
@@ -200,25 +218,58 @@ DoPlotInx <- function(INX,ySpacing) {
        y=par("usr")[4] - (par("usr")[4] - par("usr")[3]) * .1,
        font=2,adj=c(-.1,.5))
 
-  rect(xleft=4.6,xright=5,
-       ybottom=seq(from=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .1,
-                   to=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .5,
-                   length.out=101)[1:100],
-       ytop=seq(from=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .1,
-                to=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .5,
-                length.out=101)[2:101],
-       col=colourScheme,border=NA)
-  text(x=5,
-       y=c(par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .1,
-           par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .3,
-           par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .5),
-       labels=c(round(min(INX$nodes[,attr(INX,"GeneMagnitude")]),2),
-                0,
-                round(max(INX$nodes[,attr(INX,"GeneMagnitude")]),2)),
-       pos=4)
-  text(x=4.6,y=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .5,
+  temp_fc <- INX$nodes$col[!is.infinite(INX$nodes[,attr(INX,"GeneMagnitude")])]
+  if (any(INX$nodes[,attr(INX,"GeneMagnitude")] <= 0)) {
+    rect(xleft=4.6,xright=5,
+         ybottom=seq(from=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .1,
+                     to=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .3,
+                     length.out=50 - min(temp_fc) + 1)[seq(1,50 - min(temp_fc))],
+         ytop=seq(from=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .1,
+                  to=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .3,
+                  length.out=50 - min(temp_fc) + 1)[seq(1,50 - min(temp_fc)) + 1],
+         col=colourScheme[seq(min(temp_fc),50)],border=NA)
+    text(x=5,y=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .1,
+         labels=round(min(INX$nodes[,attr(INX,"GeneMagnitude")][
+           !is.infinite(INX$nodes[,attr(INX,"GeneMagnitude")])]),2),
+         adj=c(-.1,0))
+  }
+  if (any(INX$nodes[,attr(INX,"GeneMagnitude")] > 0)) {
+    rect(xleft=4.6,xright=5,
+         ybottom=seq(from=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .3,
+                     to=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .5,
+                     length.out=max(temp_fc) - 51 + 1)[seq(1,max(temp_fc) - 51)],
+         ytop=seq(from=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .3,
+                  to=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .5,
+                  length.out=max(temp_fc) - 51 + 1)[seq(1,max(temp_fc) - 51) + 1],
+         col=colourScheme[seq(51,max(temp_fc))],border=NA)
+    text(x=5,y=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .5,
+         labels=round(max(INX$nodes[,attr(INX,"GeneMagnitude")][
+           !is.infinite(INX$nodes[,attr(INX,"GeneMagnitude")])]),2),
+         adj=c(-.1,1))
+  }
+  text(x=5,y=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .3,
+       labels=0,adj=c(-0.5,0.5))
+  if (any(INX$nodes[,attr(INX,"GeneMagnitude")] == Inf)) {
+    rect(xleft=4.6,xright=5,
+         ybottom=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .51,
+         ytop=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .54,
+         col=colourScheme[100],border=NA)
+    text(x=5,y=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .54,
+         labels=Inf,adj=c(-.2,1))
+  }
+  if (any(INX$nodes[,attr(INX,"GeneMagnitude")] == -Inf)) {
+    rect(xleft=4.6,xright=5,
+         ybottom=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .09,
+         ytop=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .06,
+         col=colourScheme[1],border=NA)
+    text(x=5,y=par("usr")[3] + (par("usr")[4] - par("usr")[3]) * .06,
+         labels=-Inf,adj=c(-.2,0))
+  }
+  text(x=4.6,y=par("usr")[3] + (par("usr")[4] - par("usr")[3]) *
+         switch(as.character(any(INX$nodes[,attr(INX,"GeneMagnitude")] == Inf)),
+                "TRUE"=.54,
+                "FALSE"=.5),
        labels=attr(INX,"GeneMagnitude"),font=2,adj=c(0,-1))
-
 }
 
 
