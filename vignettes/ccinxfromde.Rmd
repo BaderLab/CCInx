@@ -22,7 +22,6 @@ knitr::opts_chunk$set(
 # Setup ----
 library(CCInx)
 sysDr <- switch(Sys.info()["sysname"],"~/",Windows="D:/")
-netDir <- paste0(sysDr,"Dropbox/GDB/CCCnetResources/1705_RuthData/")
 inputDataPath <- paste0(sysDr,"Dropbox/GDB/RubinBrainEndo/Rubin_Data_for_Bader_Lab/190221/young_to_old_neuronal/")
 # Load DE results -----------------------
 deL <- sapply(list.files(inputDataPath)[2:4],function(X)
@@ -51,45 +50,29 @@ load(system.file("DemoData/DemoDE.RData",package="CCInx"))
 lapply(deL,head)
 ```
 
-CCInx is run as follows.  First, the nodes are scored in order to rank and filter them for inclusion in the network. Scores are scaled for ease of comparison between cell types, and converted for factors for plot colour scale.
-
-```{r Score nodes,fig.}
-scoredGeneList <- ScoreClustGenes(GeneStatList=deL,
-                                  GeneMagnitude="logFC",
-                                  GeneStatistic="padj")
-
-par(mar=c(3,3,1,1),mgp=2:0)
-hist(scoredGeneList$GABA$score,breaks=100,xlab="Node DE score",main=NA)
-hist(scoredGeneList$GABA$scaledFactor,xlab="Node score as scaled factor",main=NA)
-```
-
-The network is then built using the list of scored DE gene data frames. The output of `BuildInx` is a list of dataframes serving as edge list for each pair of cell types, and `BuildInxNode` generates the corresponding node metadata. These can be exported as .csv files for use in Cytoscape.
+The CCInx network is built using the list of gene expression data frames. The output of `BuildCCInx` is a list of cell type pairs, with each entry storing both the edge list and node metadata. These can be exported as .csv files for use in Cytoscape.
 
 ```{r Build CCInx}
-inx <- BuildInx(SCL=scoredGeneList,
-                NodeScoreThreshold=0,
-                EdgeScoreThreshold=0,
-                species="mmusculus")
+inx <- BuildCCInx(GeneStatList=deL,
+                  GeneMagnitude="logFC",
+                  GeneStatistic="padj",
+                  Species="mmusculus")
 
-head(inx$`DOPA~GABA`)
-
-inxNode <- BuildInxNode(INX=inx,
-                        SCL=scoredGeneList)
-
-head(inxNode$`DOPA~GABA`)
+head(inx$`DOPA~GABA`$edges)
+head(inx$`DOPA~GABA`$nodes)
 ```
 
-
-```{r Plot CCInx, eval=FALSE, include=TRUE}
+```{r Plot CCInx}
 PlotCCInx(INX=inx,
-          INXNODE=inxNode,
-          comparisons=c("DOPA~GABA","DOPA~GLUT"),
-          directions=c("LtoR","RtoL"),
-          topPer=20,
-          imageFileType="png",
-          imageFilePath="../inst/DemoData/")
+          cellTypeA="GABA",cellTypeB="GABA",
+          proteinTypeA="Receptor",proteinTypeB="Ligand")
 ```
-![alt text](../inst/DemoData/DOPA_GABA_LtoR_topPer20.png)
-![alt text](../inst/DemoData/DOPA_GABA_RtoL_topPer20.png)
-![alt text](../inst/DemoData/DOPA_GLUT_LtoR_topPer20.png)
-![alt text](../inst/DemoData/DOPA_GLUT_RtoL_topPer20.png)
+
+```{r eval=FALSE, include=FALSE}
+cellTypeA <- "GABA"
+cellTypeB <- "DOPA"
+proteinTypeA="Receptor"
+proteinTypeB="Ligand"
+INX <- inx
+```
+
