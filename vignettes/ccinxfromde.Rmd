@@ -69,3 +69,11 @@ PlotCCInx(INX=inx,
           TopEdges=50)
 ```
 
+```{r eval=FALSE, include=FALSE}
+cellTypeA <- "GABA"
+cellTypeB <- "DOPA"
+proteinTypeA="Receptor"
+proteinTypeB="Ligand"
+INX <- inx
+```
+
