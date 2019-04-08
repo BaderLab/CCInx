@@ -67,13 +67,5 @@ PlotCCInx(INX=inx,
           cellTypeA="GABA",cellTypeB="DOPA",
           proteinTypeA="Receptor",proteinTypeB="Ligand",
           TopEdges=50)
+# Also check out ViewCCInx(inx) for a Shiny viewer!
 ```
-
-```{r eval=FALSE, include=FALSE}
-cellTypeA <- "GABA"
-cellTypeB <- "DOPA"
-proteinTypeA="Receptor"
-proteinTypeB="Ligand"
-INX <- inx
-```
-
