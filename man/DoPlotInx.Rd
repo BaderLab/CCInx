@@ -4,7 +4,7 @@
 \alias{DoPlotInx}
 \title{Internal function:}
 \usage{
-DoPlotInx(INX, ySpacing)
+DoPlotInx(INX, ySpacing, plot.asp = NA)
 }
 \description{
 Internal function:

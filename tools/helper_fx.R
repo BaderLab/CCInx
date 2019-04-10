@@ -10,7 +10,7 @@ require(biomaRt)
 martM <- useMart("ensembl","mmusculus_gene_ensembl")
 martH <- useMart("ensembl","hsapiens_gene_ensembl")
 h2m <- getLDS(attributes="hgnc_symbol",mart=martH,
-              filters="hgnc_symbol",values=geneInfo$hgnc_symbol,
+              filters="hgnc_symbol",values=geneInfo_pf$hgnc_symbol,
               attributesL="mgi_symbol",martL=martM)
 
 ## using only uniquely mapping homologs ##
