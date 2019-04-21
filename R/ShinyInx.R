@@ -9,9 +9,10 @@
 #' @export
 
 ViewCCInx <- function(INX,...) {
-  if (!is.list(INX) |
-      !all(grepl("~",names(INX))) |
-      !all(sapply(INX,function(X) all(c("edges","nodes") %in% names(X))))) {
+  if (!is.list(INX)) {
+    stop("INX must be the output of the function CCInx::BuildCCInx()")
+  }
+  if (!all(names(INX) %in% c("nodes","edges"))) {
     stop("INX must be the output of the function CCInx::BuildCCInx()")
   }
 
@@ -34,7 +35,7 @@ ViewCCInx <- function(INX,...) {
       selectInput("WhichFilter","Filter network by:",
                   choices=list("All"="All",
                                "Differential expression significance"="Stat",
-                               "Differential expression  Magnitude"="Magn",
+                               "Differential expression magnitude"="Magn",
                                "Top n edges by mean scaled DE magnitude"="Top",
                                "Gene symbols"="Genes"),
                   selected="Top"),
@@ -66,12 +67,12 @@ ViewCCInx <- function(INX,...) {
 
   server <- function(input,output,session) {
     output$cellTypesA <- renderUI({
-      temp <- unique(unlist(strsplit(names(INX),"~")))
+      temp <- unique(OxYxCCInx$nodes$cellType)
       selectInput("cellTypeA","Cell Type A:",
                   choices=temp,selected=temp[1])
     })
     output$cellTypesB <- renderUI({
-      temp <- unique(unlist(strsplit(names(INX),"~")))
+      temp <- unique(OxYxCCInx$nodes$cellType)
       selectInput("cellTypeB","Cell Type B:",
                   choices=temp,selected=temp[2])
     })

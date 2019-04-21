@@ -4,12 +4,6 @@
 #' @export
 
 FilterInx_step1 <- function(INX,cellTypeA,cellTypeB,proteinTypeA,proteinTypeB) {
-  if (cellTypeA == cellTypeB) {
-    INX <- INX[[which(sapply(strsplit(names(INX),"~"),function(X) all(X == cellTypeA)))]]
-  } else {
-    INX <- INX[[which(sapply(strsplit(names(INX),"~"),function(X) cellTypeA %in% X & cellTypeB %in% X))]]
-  }
-
   nodesA <- INX$nodes[INX$nodes$cellType == cellTypeA &
                         grepl(proteinTypeA,INX$nodes$proteinType),]
   if (nrow(nodesA) < 1) {
@@ -17,6 +11,7 @@ FilterInx_step1 <- function(INX,cellTypeA,cellTypeB,proteinTypeA,proteinTypeB) {
   }
   nodesA$side <- "A"
   rownames(nodesA) <- paste(rownames(nodesA),"A",sep="_")
+
   nodesB <- INX$nodes[INX$nodes$cellType == cellTypeB &
                         grepl(proteinTypeB,INX$nodes$proteinType),]
   if (nrow(nodesA) < 1) {
@@ -26,21 +21,21 @@ FilterInx_step1 <- function(INX,cellTypeA,cellTypeB,proteinTypeA,proteinTypeB) {
   rownames(nodesB) <- paste(rownames(nodesB),"B",sep="_")
   INX$nodes <- rbind(nodesA,nodesB)
 
-  edgesA <- INX$edges[(INX$edges$nodeA %in% INX$nodes$node[INX$nodes$side == "A"] &
-                         INX$edges$nodeB %in% INX$nodes$node[INX$nodes$side == "B"]),]
-  if (nrow(edgesA) > 0) {
-    edgesA$nodeA <- paste(edgesA$nodeA,"A",sep="_")
-    edgesA$nodeB <- paste(edgesA$nodeB,"B",sep="_")
+  edgesAB <- INX$edges[INX$edges$nodeA %in% nodesA$node &
+                        INX$edges$nodeB %in% nodesB$node,]
+  if (nrow(edgesAB) > 0) {
+    edgesAB$nodeA <- paste(edgesAB$nodeA,"A",sep="_")
+    edgesAB$nodeB <- paste(edgesAB$nodeB,"B",sep="_")
   }
-  edgesB <- INX$edges[(INX$edges$nodeB %in% INX$nodes$node[INX$nodes$side == "A"] &
-                         INX$edges$nodeA %in% INX$nodes$node[INX$nodes$side == "B"]),]
-  if (nrow(edgesB) > 0) {
-    tempB <- paste(edgesB$nodeA,"B",sep="_")
-    tempA <- paste(edgesB$nodeB,"A",sep="_")
-    edgesB$nodeA <- tempA
-    edgesB$nodeB <- tempB
+  edgesBA <- INX$edges[INX$edges$nodeA %in% nodesB$node &
+                        INX$edges$nodeB %in% nodesA$node,]
+  if (nrow(edgesBA) > 0) {
+    tempB <- paste(edgesBA$nodeA,"B",sep="_")
+    tempA <- paste(edgesBA$nodeB,"A",sep="_")
+    edgesBA$nodeA <- tempA
+    edgesBA$nodeB <- tempB
   }
-  INX$edges <- rbind(edgesA,edgesB)
+  INX$edges <- rbind(edgesAB,edgesBA)
 
   INX$nodes <- INX$nodes[rownames(INX$nodes) %in% unique(c(INX$edges$nodeA,INX$edges$nodeB)),]
   INX$nodes <- INX$nodes[,-which(colnames(INX$nodes) == "node")]
@@ -57,7 +52,7 @@ FilterInx_step1 <- function(INX,cellTypeA,cellTypeB,proteinTypeA,proteinTypeB) {
 #' @export
 
 FilterInx_topN <- function(INX,topN) {
-  INX$edges <- INX$edges[head(order(abs(INX$edges$meanDEscaled),decreasing=T),topN),]
+  INX$edges <- INX$edges[head(order(abs(INX$edges$edgeWeight),decreasing=T),topN),]
   INX$nodes <- INX$nodes[unique(c(INX$edges$nodeA,INX$edges$nodeB)),]
   return(INX)
 }
@@ -170,8 +165,8 @@ DoPlotInx <- function(INX,ySpacing,plot.asp=NA) {
                           breaks=c(1,.05,.01,.001,.0001,0),
                           right=T,include.lowest=T)
 
-  INX$edges$col <- cut(c(1,-1,INX$edges$meanDEscaled),100,labels=F)[-1:-2]
-  INX$edges$lwd <- seq(2,6)[cut(c(0,1,abs(INX$edges$meanDEscaled)),5,labels=F)[-1:-2]]
+  INX$edges$col <- cut(c(1,-1,INX$edges$edgeWeight),100,labels=F)[-1:-2]
+  INX$edges$lwd <- seq(2,6)[cut(c(0,1,abs(INX$edges$edgeWeight)),5,labels=F)[-1:-2]]
 
 
   par(mar=c(3,3,3,1),mgp=2:0)

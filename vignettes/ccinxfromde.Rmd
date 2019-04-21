@@ -58,14 +58,14 @@ inx <- BuildCCInx(GeneStatList=deL,
                   GeneStatistic="padj",
                   Species="mmusculus")
 
-head(inx$`DOPA~GABA`$edges)
-head(inx$`DOPA~GABA`$nodes)
+head(inx$edges)
+head(inx$nodes)
 ```
 
 ```{r Plot CCInx, fig.height=5, fig.width=7}
 PlotCCInx(INX=inx,
           cellTypeA="GABA",cellTypeB="DOPA",
           proteinTypeA="Receptor",proteinTypeB="Ligand",
-          TopEdges=50)
+          TopEdges=30)
 # Also check out ViewCCInx(inx) for a Shiny viewer!
 ```

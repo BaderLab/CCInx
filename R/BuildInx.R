@@ -19,7 +19,7 @@
 #'   significance of expression change. This is generally a corrected p-value.
 #'
 
-CheckDE <- function(gdb,DEmagn,DEstat) {
+CalcDEscaled <- function(gdb,DEmagn,DEstat) {
   if (any( is.na(gdb[[DEmagn]]) )) {
     stop(paste("This function doesn't tolerate missing",
                DEmagn,"values."))
@@ -28,7 +28,7 @@ CheckDE <- function(gdb,DEmagn,DEstat) {
     stop(paste("This function doesn't tolerate missing",
                DEstat,"values."))
   }
-  gdb$DEscaled <- sapply(gdb[[DEmagn]],function(X) {
+  return(sapply(gdb[[DEmagn]],function(X) {
     if (X == Inf) {
       1.1
     } else if (X == -Inf) {
@@ -38,8 +38,7 @@ CheckDE <- function(gdb,DEmagn,DEstat) {
                  "TRUE"=max(gdb[[DEmagn]][!is.infinite(gdb[[DEmagn]])]),
                  "FALSE"=min(gdb[[DEmagn]][!is.infinite(gdb[[DEmagn]])]) * -1)
     }
-  })
-  return(gdb)
+  }))
 }
 
 
@@ -87,19 +86,29 @@ BuildCCInx <- function(GeneStatList,
   if (any(grepl("_",names(GeneStatList)))) {
     stop("GeneStatList names must not contain '_' due to internal naming conventions.")
   }
-  message("Checking input data...")
-  if (missing(GeneStatistic)) {
-    GeneStatList <- pbapply::pbsapply(X=GeneStatList,
-                                      FUN=CheckExpr,
-                                      expr=GeneMagnitude,
-                                      simplify=F)
-  } else {
-    GeneStatList <- pbapply::pbsapply(X=GeneStatList,
-                                      FUN=CheckDE,
-                                      DEmagn=GeneMagnitude,
-                                      DEstat=GeneStatistic,
-                                      simplify=F)
+  if (any(grepl("~",names(GeneStatList)))) {
+    stop("GeneStatList names must not contain '~' due to internal naming conventions.")
   }
+  message("Scaling node weights per cell type...")
+  if (missing(GeneStatistic)) {
+    temp_scaled <- pbapply::pbsapply(X=GeneStatList,
+                                     FUN=CheckExpr,
+                                     expr=GeneMagnitude,
+                                     simplify=F)
+  } else {
+    temp_scaled <- pbapply::pbsapply(X=GeneStatList,
+                                     FUN=CalcDEscaled,
+                                     DEmagn=GeneMagnitude,
+                                     DEstat=GeneStatistic,
+                                     simplify=F)
+  }
+  inx <- list()
+  message("Building node metadata...")
+  temp_cellNames <- names(GeneStatList)
+  inx$nodes <- do.call(rbind,GeneStatList)
+  temp_rownames <- strsplit(rownames(inx$nodes),".",fixed=T)
+  temp_gene <- sapply(temp_rownames,function(X) paste(X[-1],collapse="."))
+  temp_cellType <- sapply(temp_rownames,function(X) X[1])
 
   switch(Species,
          hsapiens=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI.RData",
@@ -107,11 +116,23 @@ BuildCCInx <- function(GeneStatList,
          mmusculus=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI_mouse.RData",
                                     package="CCInx")),
          stop("Species must be one of 'hsapiens' or 'mmusculus'."))
+  if (!any(temp_gene %in% rownames(geneInfo))) {
+    stop("Rownames of each entry in GeneStatList must be official gene symbols.")
+  }
+  temp_proteinType <- geneInfo[temp_gene,"protein_type"]
+  inx$nodes <- cbind(data.frame(node=paste(temp_gene,temp_cellType,sep="_"),
+                                gene=temp_gene,
+                                cellType=temp_cellType,
+                                proteinType=temp_proteinType,
+                                nodeWeight=unlist(temp_scaled),
+                                stringsAsFactors=F),
+                     inx$nodes)
+  rownames(inx$nodes) <- inx$nodes$node
+  inx$nodes <- inx$nodes[!is.na(inx$nodes$proteinType),]
 
   tempCN <- c()
-  names(GeneStatList) <- gsub("~","_",names(GeneStatList))
-  for (a in names(GeneStatList)) {
-    for (b in names(GeneStatList)) {
+  for (a in temp_cellNames) {
+    for (b in temp_cellNames) {
       temp <- paste(sort(c(a,b)),collapse="~")
       if (!temp %in% tempCN) {
         tempCN <- append(tempCN,temp)
@@ -122,88 +143,47 @@ BuildCCInx <- function(GeneStatList,
   tempComp <- strsplit(tempCN,"~")
   names(tempComp) <- tempCN
 
-  message("Building predicted cell-cell interaction networks...")
-  inxL <- pbapply::pbsapply(tempComp,function(Z) {
+  message("Building edge list...")
+  inx$edges <- pbapply::pbsapply(tempComp,function(Z) {
     a <- Z[1]; b <- Z[2]
-    if (nrow(GeneStatList[[a]]) < 1 | nrow(GeneStatList[[b]]) < 1) { return(NULL) }
-    inx <- list(edges=c(),
-                nodes=c())
+    if (sum(inx$nodes$cellType == a) < 1 |
+        sum(inx$nodes$cellType == b) < 1) {
+      return(NULL)
+    }
 
-    keysAB <- inxDB$key[inxDB$nodeA %in% rownames(GeneStatList[[a]]) &
-                          inxDB$nodeB %in% rownames(GeneStatList[[b]])]
-    temp_edges <- data.frame(
+    keysAB <- inxDB$key[inxDB$nodeA %in% inx$nodes$gene[inx$nodes$cellType == a] &
+                          inxDB$nodeB %in% inx$nodes$gene[inx$nodes$cellType == b]]
+    edgesAB <- data.frame(
       sapply(strsplit(keysAB,"_"),function(X)
         paste(paste(X[1],a,sep="_"),paste(X[2],b,sep="_"),sep="~")),
       t(sapply(strsplit(keysAB,"_"),function(X)
         c(paste(X[1],a,sep="_"),paste(X[2],b,sep="_")))),
       stringsAsFactors=F)
-    colnames(temp_edges) <- c("key","nodeA","nodeB")
-    rownames(temp_edges) <- temp_edges$key
+    colnames(edgesAB) <- c("key","nodeA","nodeB")
+    rownames(edgesAB) <- edgesAB$key
 
-    nodesAB <- unique(c(temp_edges$nodeA,temp_edges$nodeB))
-    temp_nodes <- data.frame(nodesAB,
-                             do.call(rbind,strsplit(nodesAB,"_")),
-                             stringsAsFactors=F)
-    colnames(temp_nodes) <- c("node","gene","cellType")
-    rownames(temp_nodes) <- temp_nodes$node
-    temp_nodes$proteinType <- geneInfo[temp_nodes$gene,"protein_type"]
-    if (a == b) {
-      temp_nodes <- cbind(temp_nodes,
-                          GeneStatList[[a]][temp_nodes[temp_nodes$cellType == a,"gene"],])
-    } else {
-      temp_nodes <- cbind(temp_nodes,
-                          rbind(GeneStatList[[a]][temp_nodes[temp_nodes$cellType == a,"gene"],],
-                                GeneStatList[[b]][temp_nodes[temp_nodes$cellType == b,"gene"],]))
-    }
-    inx$nodes <- rbind(inx$nodes,temp_nodes)
-
-    # temp_edges$meanSigScore <- rowMeans(cbind(inx$nodes[temp_edges$nodeA,"SigScore"],
-    #                                           inx$nodes[temp_edges$nodeB,"SigScore"]))
-    temp_edges$meanDEscaled <- rowMeans(cbind(inx$nodes[temp_edges$nodeA,"DEscaled"],
-                                              inx$nodes[temp_edges$nodeB,"DEscaled"]))
-    inx$edges <- rbind(inx$edges,temp_edges)
-
-    keysBA <- inxDB$key[inxDB$nodeA %in% rownames(GeneStatList[[b]]) &
-                          inxDB$nodeB %in% rownames(GeneStatList[[a]])]
-    temp_edges <- data.frame(
+    keysBA <- inxDB$key[inxDB$nodeA %in% inx$nodes$gene[inx$nodes$cellType == b] &
+                          inxDB$nodeB %in% inx$nodes$gene[inx$nodes$cellType == a]]
+    edgesBA <- data.frame(
       sapply(strsplit(keysBA,"_"),function(X)
         paste(paste(X[2],a,sep="_"),paste(X[1],b,sep="_"),sep="~")),
       t(sapply(strsplit(keysBA,"_"),function(X)
         c(paste(X[2],a,sep="_"),paste(X[1],b,sep="_")))),
       stringsAsFactors=F)
-    colnames(temp_edges) <- c("key","nodeA","nodeB")
-    rownames(temp_edges) <- temp_edges$key
+    colnames(edgesBA) <- c("key","nodeA","nodeB")
+    rownames(edgesBA) <- edgesBA$key
 
-    nodesBA <- unique(c(temp_edges$nodeA,temp_edges$nodeB))
-    nodesBA <- nodesBA[!nodesBA %in% inx$nodes$node]
-    if (length(nodesBA) != 0) {
-      temp_nodes <- data.frame(nodesBA,
-                               do.call(rbind,strsplit(nodesBA,"_")),
-                               stringsAsFactors=F)
-      colnames(temp_nodes) <- c("node","gene","cellType")
-      rownames(temp_nodes) <- temp_nodes$node
-      temp_nodes$proteinType <- geneInfo[temp_nodes$gene,"protein_type"]
-      if (a == b) {
-        temp_nodes <- cbind(temp_nodes,
-                            GeneStatList[[a]][temp_nodes[temp_nodes$cellType == a,"gene"],])
-      } else {
-        temp_nodes <- cbind(temp_nodes,
-                            rbind(GeneStatList[[a]][temp_nodes[temp_nodes$cellType == a,"gene"],],
-                                  GeneStatList[[b]][temp_nodes[temp_nodes$cellType == b,"gene"],]))
-      }
-      inx$nodes <- rbind(inx$nodes,temp_nodes)
-    }
-    # temp_edges$meanSigScore <- rowMeans(cbind(inx$nodes[temp_edges$nodeA,"SigScore"],
-    #                                           inx$nodes[temp_edges$nodeB,"SigScore"]))
-    temp_edges$meanDEscaled <- rowMeans(cbind(inx$nodes[temp_edges$nodeA,"DEscaled"],
-                                              inx$nodes[temp_edges$nodeB,"DEscaled"]))
-    inx$edges <- rbind(inx$edges,temp_edges)
-
-    attr(inx,"GeneMagnitude") <- GeneMagnitude
-    attr(inx,"GeneStatistic") <- GeneStatistic
-
-    return(inx)
+    return(rbind(edgesAB,edgesBA))
   },simplify=F)
-  return(inxL)
+  inx$edges <- do.call(rbind,inx$edges)
+  rownames(inx$edges) <- inx$edges$key
+  inx$edges <- inx$edges[,2:3]
+  inx$edges$edgeWeight <- rowMeans(cbind(inx$nodes[inx$edges$nodeA,"nodeWeight"],
+                                         inx$nodes[inx$edges$nodeB,"nodeWeight"]))
+
+  attr(inx,"GeneMagnitude") <- GeneMagnitude
+  attr(inx,"GeneStatistic") <- GeneStatistic
+
+  return(inx)
 }
 
