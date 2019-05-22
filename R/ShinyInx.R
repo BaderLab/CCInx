@@ -67,12 +67,12 @@ ViewCCInx <- function(INX,...) {
 
   server <- function(input,output,session) {
     output$cellTypesA <- renderUI({
-      temp <- unique(OxYxCCInx$nodes$cellType)
+      temp <- unique(INX$nodes$cellType)
       selectInput("cellTypeA","Cell Type A:",
                   choices=temp,selected=temp[1])
     })
     output$cellTypesB <- renderUI({
-      temp <- unique(OxYxCCInx$nodes$cellType)
+      temp <- unique(INX$nodes$cellType)
       selectInput("cellTypeB","Cell Type B:",
                   choices=temp,selected=temp[2])
     })

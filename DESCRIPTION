@@ -4,14 +4,16 @@ Title: Predict cell-cell interaction networks from single-cell data
 Version: 0.3.0
 Authors@R: c(as.person("Brendan T. Innes <brendan.innes@mail.utoronto.ca> [aut,cre]"),
              as.person("Gary D. Bader [aut,ths]"))
-Description: More about what it does (maybe more than one line)
-    Use four spaces when indenting paragraphs within the Description.
+Description: Build predicted cell-cell interaction networks from single-cell data.
+    This package is under development, so keep up-to-date by regularly checking for
+    updates at https://baderlab.github.io/CCInx/
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
 Suggests: 
-    knitr,
-    rmarkdown
+    knitr (>= 1.22),
+    rmarkdown,
+    scClustViz (>= 1.0.0)
 Imports:
     scales (>= 1.0.0),
     RColorBrewer (>= 1.1-2),
@@ -19,5 +21,6 @@ Imports:
     grDevices(>= 3.5.1)
 Depends:
     shiny (>= 1.1.0)
+Remotes: BaderLab/scClustViz
 RoxygenNote: 6.1.1
 VignetteBuilder: knitr

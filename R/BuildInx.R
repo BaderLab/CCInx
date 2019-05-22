@@ -1,3 +1,99 @@
+#' Build cluster-wise list of gene expression statistics from scRNAseq data
+#'
+#' This function takes a \code{Seurat} or \code{SingleCellExperiment} object and
+#' builds a list of dataframes containing gene expression statistics for all
+#' genes of each cluster. This can be used as the input to
+#' \code{\link{BuildCCInx}} for generating cell-cell interaction predictions
+#' between cell-type clusters.
+#'
+#' @param inD The input dataset. An object of class \code{\link[Seurat]{seurat}}
+#'   or \code{\link[SingleCellExperiment]{SingleCellExperiment}}. Other data
+#'   classes are not currently supported.
+#'   \href{https://github.com/BaderLab/scClustViz/issues}{Please submit requests
+#'   for other data objects here!}
+#' @param cl a factor where each value is the cluster assignment for a cell
+#'   (column) in the input gene expression matrix.
+#' @param assayType Default = "" (for Seurat v1/2). A length-one character
+#'   vector representing the assay slot in which the expression data is stored
+#'   in the input object. This is not required for Seurat v1 or v2 objects. See
+#'   \code{\link[scClustViz]{getExpr}} for details.
+#' @param exponent Default = 2. A length-one numeric vector representing the
+#'   base of the log-normalized gene expression data to be processed. Generally
+#'   gene expression data is transformed into log2 space when normalizing (set
+#'   this to 2), though \code{Seurat} uses the natural log (set this to exp(1)).
+#' @param pseudocount Default = 1. A length-one numeric vector representing the
+#'   pseudocount added to all log-normalized values in your input data. Most
+#'   methods use a pseudocount of 1 to eliminate log(0) errors.
+#'
+#' @seealso \code{\link[scClustViz]{CalcCGS}}
+#'
+#' @references Mean gene expression calculations
+#'   Innes BT and Bader GD. scClustViz – Single-cell RNAseq cluster
+#'   assessment and visualization [version 2; peer review: 2 approved].
+#'   F1000Research 2019, 7:1522 (\url{https://doi.org/10.12688/f1000research.16198.2})
+#'
+#' @export
+
+BuildGeneStatList <- function(inD,
+                              cl,
+                              assayType="",
+                              exponent=2,
+                              pseudocount=1) {
+  if (!require(scClustViz)) {
+    stop(paste("scClustViz is required for this function. Install from github:",
+               "    devtools::install_github('Baderlab/scClustViz')",sep="\n"))
+  }
+  if (!is(inD)[1] %in% methods::findMethodSignatures(scClustViz::getExpr)) {
+    stop(paste(
+      paste0("Input data object must be one of: ",
+             paste(methods::findMethodSignatures(scClustViz::getExpr),collapse=", "),
+             "."),
+      paste("Other input objects are not supported at this time,",
+            "but please let me know what object class"),
+      paste("you'd like supported at",
+            "https://github.com/BaderLab/scClustViz/issues, thanks!"),
+      sep="\n  "))
+  }
+  if (is.null(colnames(scClustViz::getExpr(inD,assayType))) |
+      is.null(rownames(scClustViz::getExpr(inD,assayType)))) {
+    stop("Gene expression matrix returned by 'scClustViz::getExpr(inD,assayType)' is missing col/rownames.")
+  }
+  if (length(cl) != ncol(scClustViz::getExpr(inD,assayType))) {
+    stop(paste("cl must be a factor where each value is the cluster assignment",
+               "for a cell (column) in the input gene expression matrix.",
+               sep="\n  "))
+  }
+  if (is.character(cl)) {
+    cl <- as.factor(cl)
+  }
+  if (!all(names(cl) == colnames(scClustViz::getExpr(inD,assayType))) | is.null(names(cl))) {
+    names(cl) <- colnames(scClustViz::getExpr(inD,assayType))
+  }
+  if (any(grepl("_",levels(cl)))) {
+    stop("Cluster names cannot contain '_' due to internal naming conventions.")
+  }
+  if (any(grepl("~",levels(cl)))) {
+    stop("Cluster names cannot contain '~' due to internal naming conventions.")
+  }
+
+  temp <- scClustViz:::fx_calcCGS(nge=scClustViz::getExpr(inD,assayType),
+                                  cl=cl,
+                                  exponent=2,
+                                  pseudocount=1)
+  return(
+    sapply(temp,function(X) {
+      X <- X[X$DR > 0,]
+      names(X)[names(X) == "DR"] <- "DetectRate"
+      names(X)[names(X) == "MDGE"] <- "MeanDetectGeneExpr"
+      names(X)[names(X) == "MGE"] <- "MeanNormGeneExpr"
+      return(X)
+    },simplify=F)
+  )
+}
+
+
+
+
 
 #' Check input and score and scale DE stats.
 #'
@@ -42,12 +138,42 @@ CalcDEscaled <- function(gdb,DEmagn,DEstat) {
 }
 
 
+#' Check input and score and scale gene expression.
+#'
+#' This function takes differential expression gene statistics from scRNAseq
+#' data representing a cell type as a dataframe, and assigns scaled scores to
+#' the statistic of choice. This is used to rank nodes and edges by differential
+#' expression when viewing the bipartite ligand-receptor plots.
+#'
+#' @param gdb A data frame representing gene statistics from a cell type, where
+#'   each row is a gene with official gene symbols as row names. Variables
+#'   should be appropriately named statistics or annotations to be included in
+#'   the resulting node metadata.
+#' @param expr A character vector of length 1 representing the variable name
+#'   in the GeneStatList data frames carrying information on the magnitude and
+#'   direction of the change of expression for the node (gene) in each cell
+#'   type. This is generally a signed logFC or gene expression ratio.
+
 CheckExpr <- function(gdb,expr) {
-  stop("Only DE scoring is supported right now. GeneStatistic argument must be provided.")
+  if (any( is.na(gdb[[expr]]) )) {
+    stop(paste("This function doesn't tolerate missing",
+               expr,"values."))
+  }
+  return( ( gdb[[expr]] - min(gdb[[expr]]) ) /
+            max( gdb[[expr]] - min(gdb[[expr]]) ) )
 }
 
-#' Build cell-cell interaction edge list from scored cell-type statistics
+#' Build cell-cell interaction predictions between cell types
 #'
+#' This function takes a list of gene statistics per cluster to predict
+#' cell-cell interactions between each cell-type (cluster). If the
+#' \code{GeneStatistic} argument is provided, this function will assume the gene
+#' statistics represent differential expression between experimental conditions,
+#' and will weight the predicted interactions accordingly. Otherwise,
+#' predictions will be weighted by expression magnitude per cell type. The
+#' output of this function can be explored interactively with
+#' \code{\link{ViewCCInx}}, or static figures can be generated with
+#' \code{\link{PlotCCInx}}.
 #'
 #' @param GeneStatList A named list of dataframes. Each list element should
 #'   represent a cell type / cluster to be included in the interaction network,
@@ -55,13 +181,18 @@ CheckExpr <- function(gdb,expr) {
 #'   where each row is a gene with official gene symbols as row names. Variables
 #'   should be appropriately named statistics or annotations to be included in
 #'   the resulting node metadata. Variable names should be consistent between
-#'   list elements.
-#' @param GeneMagnitude A character vector of length 1 representing the variable
-#'   name in the GeneStatList data frames carrying information on the magnitude
-#'   (and direction of the change) of expression for the node (gene) in each
-#'   cell type. This is either a measure of expression (generally mean
-#'   expression or detection rate) or a measure of change (signed log expression
-#'   ratio a.k.a. logFC).
+#'   list elements. The function \code{\link{BuildGeneStatList}} can be used to
+#'   generate this list from \code{Seurat} or \code{SingleCellExperiment}
+#'   objects when generating predictions not involving differential gene
+#'   expression.
+#' @param GeneMagnitude Default = "MeanNormGeneExpr". A character vector of length 1
+#'   representing the variable name in the GeneStatList data frames carrying
+#'   information on the magnitude (and direction of the change) of expression
+#'   for the node (gene) in each cell type. This is either a measure of
+#'   expression (generally mean expression or detection rate) or a measure of
+#'   change (signed log expression ratio a.k.a. logFC). Default assumes
+#'   \code{GeneStatList} is output from \code{\link{BuildGeneStatList}}, and
+#'   uses mean normalized gene expression to weight nodes and edges.
 #' @param GeneStatistic Optional. A character vector of length 1 representing
 #'   the variable name in the GeneStatList data frames carrying information on
 #'   the statistical significance of expression change. This is generally a
@@ -74,7 +205,7 @@ CheckExpr <- function(gdb,expr) {
 #' @export
 
 BuildCCInx <- function(GeneStatList,
-                       GeneMagnitude,
+                       GeneMagnitude="MeanNormGeneExpr",
                        GeneStatistic,
                        Species="hsapiens") {
   if (length(names(GeneStatList)) != length(GeneStatList)) {
@@ -84,10 +215,10 @@ BuildCCInx <- function(GeneStatList,
     stop("GeneStatList names must be unique.")
   }
   if (any(grepl("_",names(GeneStatList)))) {
-    stop("GeneStatList names must not contain '_' due to internal naming conventions.")
+    stop("GeneStatList names cannot contain '_' due to internal naming conventions.")
   }
   if (any(grepl("~",names(GeneStatList)))) {
-    stop("GeneStatList names must not contain '~' due to internal naming conventions.")
+    stop("GeneStatList names cannot contain '~' due to internal naming conventions.")
   }
   message("Scaling node weights per cell type...")
   if (missing(GeneStatistic)) {
@@ -116,8 +247,11 @@ BuildCCInx <- function(GeneStatList,
          mmusculus=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI_mouse.RData",
                                     package="CCInx")),
          stop("Species must be one of 'hsapiens' or 'mmusculus'."))
-  if (!any(temp_gene %in% rownames(geneInfo))) {
-    stop("Rownames of each entry in GeneStatList must be official gene symbols.")
+  if (sum(rownames(geneInfo) %in% temp_gene) < 20) {
+    warning(paste("Less than 20 genes from GeneStatList were detected in the CCInx database.",
+                  "  Please ensure that you've set the Species argument correctly.",
+                  "  Rownames of each entry in GeneStatList must be official gene symbols.",
+                  sep="\n"))
   }
   temp_proteinType <- geneInfo[temp_gene,"protein_type"]
   inx$nodes <- cbind(data.frame(node=paste(temp_gene,temp_cellType,sep="_"),
@@ -153,18 +287,25 @@ BuildCCInx <- function(GeneStatList,
 
     keysAB <- inxDB$key[inxDB$nodeA %in% inx$nodes$gene[inx$nodes$cellType == a] &
                           inxDB$nodeB %in% inx$nodes$gene[inx$nodes$cellType == b]]
-    edgesAB <- data.frame(
-      sapply(strsplit(keysAB,"_"),function(X)
-        paste(paste(X[1],a,sep="_"),paste(X[2],b,sep="_"),sep="~")),
-      t(sapply(strsplit(keysAB,"_"),function(X)
-        c(paste(X[1],a,sep="_"),paste(X[2],b,sep="_")))),
-      stringsAsFactors=F)
-    colnames(edgesAB) <- c("key","nodeA","nodeB")
-    rownames(edgesAB) <- edgesAB$key
+    if (length(keysAB) < 1) {
+      edgesAB <- data.frame(row.names=c("key","nodeA","nodeB"))
+    } else {
+      edgesAB <- data.frame(
+        sapply(strsplit(keysAB,"_"),function(X)
+          paste(paste(X[1],a,sep="_"),paste(X[2],b,sep="_"),sep="~")),
+        t(sapply(strsplit(keysAB,"_"),function(X)
+          c(paste(X[1],a,sep="_"),paste(X[2],b,sep="_")))),
+        stringsAsFactors=F)
+      colnames(edgesAB) <- c("key","nodeA","nodeB")
+      rownames(edgesAB) <- edgesAB$key
+    }
 
     keysBA <- inxDB$key[inxDB$nodeA %in% inx$nodes$gene[inx$nodes$cellType == b] &
                           inxDB$nodeB %in% inx$nodes$gene[inx$nodes$cellType == a]]
-    edgesBA <- data.frame(
+    if (length(keysBA) < 1) {
+      edgesBA <- data.frame(row.names=c("key","nodeA","nodeB"))
+    } else {
+      edgesBA <- data.frame(
       sapply(strsplit(keysBA,"_"),function(X)
         paste(paste(X[2],a,sep="_"),paste(X[1],b,sep="_"),sep="~")),
       t(sapply(strsplit(keysBA,"_"),function(X)
@@ -172,8 +313,14 @@ BuildCCInx <- function(GeneStatList,
       stringsAsFactors=F)
     colnames(edgesBA) <- c("key","nodeA","nodeB")
     rownames(edgesBA) <- edgesBA$key
+    }
 
-    return(rbind(edgesAB,edgesBA))
+    temp <- rbind(edgesAB,edgesBA)
+    if (nrow(temp) < 1) {
+      return(NULL)
+    } else {
+      return(temp)
+    }
   },simplify=F)
   inx$edges <- do.call(rbind,inx$edges)
   rownames(inx$edges) <- inx$edges$key
@@ -181,8 +328,14 @@ BuildCCInx <- function(GeneStatList,
   inx$edges$edgeWeight <- rowMeans(cbind(inx$nodes[inx$edges$nodeA,"nodeWeight"],
                                          inx$nodes[inx$edges$nodeB,"nodeWeight"]))
 
+  # inx$nodes <- inx$nodes[inx$nodes$node %in% inx$edges$nodeA | inx$nodes$node %in% inx$edges$nodeB,]
+  # Orphan nodes should be left in for clarity - the genes were in the database, just without interacting partners.
+  # They get filtered from the viewer in FilterInx_step1 anyway.
+
   attr(inx,"GeneMagnitude") <- GeneMagnitude
-  attr(inx,"GeneStatistic") <- GeneStatistic
+  if (!missing(GeneStatistic)) {
+    attr(inx,"GeneStatistic") <- GeneStatistic
+  }
 
   return(inx)
 }
