@@ -32,13 +32,7 @@ ViewCCInx <- function(INX,...) {
         )
       ),
       hr(),
-      selectInput("WhichFilter","Filter network by:",
-                  choices=list("All"="All",
-                               "Differential expression significance"="Stat",
-                               "Differential expression magnitude"="Magn",
-                               "Top n edges by mean scaled DE magnitude"="Top",
-                               "Gene symbols"="Genes"),
-                  selected="Top"),
+      uiOutput("FilterType"),
       uiOutput("Filter"),
       #        radioButtons("YSpacing","Y-axis:",inline=T,
       #                     choices=list(Relative="relative",
@@ -77,19 +71,43 @@ ViewCCInx <- function(INX,...) {
                   choices=temp,selected=temp[2])
     })
 
+    output$FilterType <- renderUI({
+      if (is.null(attr(INX,"GeneStatistic"))) {
+        selectInput("WhichFilter","Filter network by:",
+                    choices=list("All (could be slow!)"="All",
+                                 "Expression magnitude"="Magn",
+                                 "Top weighted edges"="Top",
+                                 "Gene symbols"="Genes"),
+                    selected="Top")
+      } else {
+        selectInput("WhichFilter","Filter network by:",
+                    choices=list("All (could be slow!)"="All",
+                                 "Differential expression significance"="Stat",
+                                 "Differential expression magnitude"="Magn",
+                                 "Top weighted edges"="Top",
+                                 "Gene symbols"="Genes"),
+                    selected="Top")
+      }
+    })
     output$Filter <- renderUI({
       switch(input$WhichFilter,
              "Stat"=numericInput("GeneStatistic",
-                                 label=paste0("Maximum ",attr(temp_inx(),"GeneStatistic"),":"),
+                                 label=paste0("Maximum ",
+                                              attr(temp_inx(),"GeneStatistic"),
+                                              ":"),
                                  value=0.05),
              "Magn"=numericInput("GeneMagnitude",
-                                      label=paste0("Minumum absolute ",attr(temp_inx(),"GeneMagnitude"),":"),
-                                      value=.1),
+                                 label=paste0("Minumum absolute ",
+                                              attr(temp_inx(),"GeneMagnitude"),
+                                              ":"),
+                                 value=.1),
              "Top"=numericInput("TopN",
-                                  label=paste0("Top n edges by mean scaled ",
-                                               attr(temp_inx(),"GeneMagnitude"),
-                                               " of nodes:"),
-                                  value=20),
+                                label=HTML(paste0(
+                                  "Number of edges sorted by weight<br/>(absolute mean scaled ",
+                                  attr(temp_inx(),"GeneMagnitude"),
+                                  " of nodes):"
+                                )),
+                                value=20),
              "Genes"=selectInput("GeneNames",label="Search by gene symbols:",
                                  choices=temp_inx()$nodes$gene,multiple=T)
       )

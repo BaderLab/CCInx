@@ -115,7 +115,7 @@ BuildGeneStatList <- function(inD,
 #'   significance of expression change. This is generally a corrected p-value.
 #'
 
-CalcDEscaled <- function(gdb,DEmagn,DEstat) {
+CalcDiffExprScaled <- function(gdb,DEmagn,DEstat) {
   if (any( is.na(gdb[[DEmagn]]) )) {
     stop(paste("This function doesn't tolerate missing",
                DEmagn,"values."))
@@ -154,7 +154,7 @@ CalcDEscaled <- function(gdb,DEmagn,DEstat) {
 #'   direction of the change of expression for the node (gene) in each cell
 #'   type. This is generally a signed logFC or gene expression ratio.
 
-CheckExpr <- function(gdb,expr) {
+CalcExprScaled <- function(gdb,expr) {
   if (any( is.na(gdb[[expr]]) )) {
     stop(paste("This function doesn't tolerate missing",
                expr,"values."))
@@ -223,12 +223,12 @@ BuildCCInx <- function(GeneStatList,
   message("Scaling node weights per cell type...")
   if (missing(GeneStatistic)) {
     temp_scaled <- pbapply::pbsapply(X=GeneStatList,
-                                     FUN=CheckExpr,
+                                     FUN=CalcExprScaled,
                                      expr=GeneMagnitude,
                                      simplify=F)
   } else {
     temp_scaled <- pbapply::pbsapply(X=GeneStatList,
-                                     FUN=CalcDEscaled,
+                                     FUN=CalcDiffExprScaled,
                                      DEmagn=GeneMagnitude,
                                      DEstat=GeneStatistic,
                                      simplify=F)
@@ -246,6 +246,8 @@ BuildCCInx <- function(GeneStatList,
                                    package="CCInx")),
          mmusculus=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI_mouse.RData",
                                     package="CCInx")),
+         MillerKaplan=load(system.file("LigRecDB_RData/MillerKaplan_mouse.RData",
+                                       package="CCInx")),
          stop("Species must be one of 'hsapiens' or 'mmusculus'."))
   if (sum(rownames(geneInfo) %in% temp_gene) < 20) {
     warning(paste("Less than 20 genes from GeneStatList were detected in the CCInx database.",

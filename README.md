@@ -12,4 +12,4 @@ devtools::update_packages()
 ```
 
 ## Usage
-See [vignette](vignettes/ccinxfromde.html) for usage.
+See [vignette](doc/ccinxfromde.html) for usage.

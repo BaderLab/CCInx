@@ -1,7 +1,7 @@
 Package: CCInx
 Type: Package
 Title: Predict cell-cell interaction networks from single-cell data
-Version: 0.3.0
+Version: 0.4.0
 Authors@R: c(as.person("Brendan T. Innes <brendan.innes@mail.utoronto.ca> [aut,cre]"),
              as.person("Gary D. Bader [aut,ths]"))
 Description: Build predicted cell-cell interaction networks from single-cell data.
