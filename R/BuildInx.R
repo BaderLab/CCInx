@@ -242,12 +242,14 @@ BuildCCInx <- function(GeneStatList,
   temp_cellType <- sapply(temp_rownames,function(X) X[1])
 
   switch(Species,
-         hsapiens=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI.RData",
+         hsapiens=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI_human.RData",
                                    package="CCInx")),
          mmusculus=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI_mouse.RData",
                                     package="CCInx")),
          MillerKaplan=load(system.file("LigRecDB_RData/MillerKaplan_mouse.RData",
                                        package="CCInx")),
+         FANTOM5=load(system.file("LigRecDB_RData/FANTOM5_human.RData",
+                                  package="CCInx")),
          stop("Species must be one of 'hsapiens' or 'mmusculus'."))
   if (sum(rownames(geneInfo) %in% temp_gene) < 20) {
     warning(paste("Less than 20 genes from GeneStatList were detected in the CCInx database.",

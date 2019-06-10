@@ -69,3 +69,30 @@ inxDB <- inxDB[!grepl("None",inxDB$key),]
 
 save(geneInfo,inxDB,file="inst/LigRecDB_RData/MillerKaplan_mouse.RData")
 
+
+
+#### Format Ramilowski FANTOM5 (2015) db for use ####
+F5db <- read.table("../CCCnetResources/FANTOM5_Ramilowski2015_PairsLigRec.txt",
+                   sep="\t",header=T,as.is=T,quote="")
+
+temp_ligand <- data.frame(symbol=unique(F5db$Ligand.ApprovedSymbol),
+                          protein_type="Ligand",
+                          stringsAsFactors=F)
+temp_receptor <- data.frame(symbol=unique(F5db$Receptor.ApprovedSymbol),
+                            protein_type="Receptor",
+                            stringsAsFactors=F)
+temp_ligand$protein_type[temp_ligand$symbol %in% temp_receptor$symbol] <- "Receptor/Ligand"
+temp_receptor$protein_type[temp_receptor$symbol %in% temp_ligand$symbol] <- "Receptor/Ligand"
+
+geneInfo <- rbind(temp_ligand,temp_receptor)
+geneInfo <- geneInfo[!duplicated(geneInfo$symbol),]
+rownames(geneInfo) <- geneInfo$symbol
+
+inxDB <- data.frame(key=paste(F5db$Ligand.ApprovedSymbol,
+                              F5db$Receptor.ApprovedSymbol,sep="_"),
+                    nodeA=F5db$Ligand.ApprovedSymbol,
+                    nodeB=F5db$Receptor.ApprovedSymbol,
+                    stringsAsFactors=F)
+rownames(inxDB) <- inxDB$key
+
+save(geneInfo,inxDB,file="inst/LigRecDB_RData/FANTOM5_human.RData")
