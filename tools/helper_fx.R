@@ -14,6 +14,17 @@ h2m <- getLDS(attributes="hgnc_symbol",mart=martH,
               filters="hgnc_symbol",values=geneInfo_pf$hgnc_symbol,
               attributesL="mgi_symbol",martL=martM)
 
+## attempt to do many-many mappings ##
+temp_GIforhomologs <- sapply(names(which(table(h2m$MGI.symbol) > 1)),
+                             function(X) {
+                               temp <- h2m$HGNC.symbol[h2m$MGI.symbol == X]
+                               out <- geneInfo_pf[temp,"protein_type"]
+                               names(out) <- temp
+                               return(out)
+                             })
+
+
+
 ## using only uniquely mapping homologs ##
 temp <- unique(h2m$HGNC.symbol[duplicated(h2m$HGNC.symbol)])
 h2m <- h2m[!h2m$HGNC.symbol %in% temp,]
@@ -59,6 +70,22 @@ geneInfo <- rbind(temp_ligand,temp_receptor)
 geneInfo <- geneInfo[!duplicated(geneInfo$symbol),]
 rownames(geneInfo) <- geneInfo$symbol
 geneInfo <- geneInfo[geneInfo$symbol != "None",]
+
+require(biomaRt)
+martM <- useMart("ensembl","mmusculus_gene_ensembl")
+martH <- useMart("ensembl","hsapiens_gene_ensembl")
+m2h <- getLDS(attributes="mgi_symbol",mart=martM,
+              filters="mgi_symbol",values=geneInfo$symbol,
+              attributesL="hgnc_symbol",martL=martH)
+## using only uniquely mapping homologs ##
+temp <- unique(m2h$MGI.symbol[duplicated(m2h$MGI.symbol)])
+m2h <- m2h[!m2h$MGI.symbol %in% temp,]
+temp <- unique(m2h$HGNC.symbol[duplicated(m2h$HGNC.symbol)])
+m2h <- m2h[!m2h$HGNC.symbol %in% temp,]
+rownames(m2h) <- m2h$MGI.symbol
+#### ^ THIS METHOD SUCKS ####
+colnames(geneInfo)[colnames(geneInfo) == "symbol"] <- "mgi_symbol"
+geneInfo$hgnc_symbol <- m2h[geneInfo$mgi_symbol,"HGNC.symbol"]
 
 inxDB <- data.frame(key=paste(mkdb$Ligand,mkdb$Receptor,sep="_"),
                     nodeA=mkdb$Ligand,
