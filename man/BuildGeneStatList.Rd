@@ -4,8 +4,7 @@
 \alias{BuildGeneStatList}
 \title{Build cluster-wise list of gene expression statistics from scRNAseq data}
 \usage{
-BuildGeneStatList(inD, cl, assayType = "", exponent = 2,
-  pseudocount = 1)
+BuildGeneStatList(inD, cl, assayType = "", exponent = 2, pseudocount = 1)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}

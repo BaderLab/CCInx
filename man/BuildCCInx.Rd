@@ -4,8 +4,12 @@
 \alias{BuildCCInx}
 \title{Build cell-cell interaction predictions between cell types}
 \usage{
-BuildCCInx(GeneStatList, GeneMagnitude = "MeanNormGeneExpr",
-  GeneStatistic, Species = "hsapiens")
+BuildCCInx(
+  GeneStatList,
+  GeneMagnitude = "MeanNormGeneExpr",
+  GeneStatistic,
+  Species = "hsapiens"
+)
 }
 \arguments{
 \item{GeneStatList}{A named list of dataframes. Each list element should

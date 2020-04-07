@@ -4,9 +4,18 @@
 \alias{PlotCCInx}
 \title{Plot cell-cell interactions as bipartite graph}
 \usage{
-PlotCCInx(INX, cellTypeA, cellTypeB, proteinTypeA, proteinTypeB,
-  GeneMagnitudeThreshold, GeneStatisticThreshold, TopEdges, GeneNames,
-  YSpacing = "relative")
+PlotCCInx(
+  INX,
+  cellTypeA,
+  cellTypeB,
+  proteinTypeA,
+  proteinTypeB,
+  GeneMagnitudeThreshold,
+  GeneStatisticThreshold,
+  TopEdges,
+  GeneNames,
+  YSpacing = "relative"
+)
 }
 \description{
 Plot cell-cell interactions as bipartite graph

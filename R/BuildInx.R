@@ -63,7 +63,7 @@ BuildGeneStatList <- function(inD,
                "for a cell (column) in the input gene expression matrix.",
                sep="\n  "))
   }
-  if (is.character(cl)) {
+  if (is.character(cl) | is.numeric(cl)) {
     cl <- as.factor(cl)
   }
   if (!all(names(cl) == colnames(scClustViz::getExpr(inD,assayType))) | is.null(names(cl))) {
@@ -237,9 +237,12 @@ BuildCCInx <- function(GeneStatList,
   message("Building node metadata...")
   temp_cellNames <- names(GeneStatList)
   inx$nodes <- do.call(rbind,GeneStatList)
-  temp_rownames <- strsplit(rownames(inx$nodes),".",fixed=T)
-  temp_gene <- sapply(temp_rownames,function(X) paste(X[-1],collapse="."))
-  temp_cellType <- sapply(temp_rownames,function(X) X[1])
+  temp_gene <- unlist(lapply(GeneStatList,rownames),use.names=F)
+  temp_cellType <- unlist(mapply(function(N,X) rep(N,X),
+                                 N=temp_cellNames,
+                                 X=sapply(GeneStatList,nrow),
+                                 SIMPLIFY=F),
+                          use.names=F)
 
   switch(Species,
          hsapiens=load(system.file("LigRecDB_RData/BaderCCIeditedbyBI_human.RData",
