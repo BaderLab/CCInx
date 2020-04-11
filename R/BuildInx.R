@@ -17,6 +17,14 @@
 #'   vector representing the assay slot in which the expression data is stored
 #'   in the input object. This is not required for Seurat v1 or v2 objects. See
 #'   \code{\link[scClustViz]{getExpr}} for details.
+#' @param assaySlot An optional length-one character vector representing
+#'   the slot of the Seurat v3 \code{\link[Seurat]{Assay}} object to use. Not
+#'   used for other single-cell data objects. The default is to use the
+#'   normalized data in the "data" slot, but you can also use the
+#'   \code{\link[Seurat]{SCTransform}}-corrected counts by setting
+#'   \code{assayType = "SCT"} and \code{assaySlot = "counts"}. This is
+#'   recommended, as it will speed up differential expression
+#'   calculations. See \code{\link{getExpr}} for details.
 #' @param exponent Default = 2. A length-one numeric vector representing the
 #'   base of the log-normalized gene expression data to be processed. Generally
 #'   gene expression data is transformed into log2 space when normalizing (set
@@ -37,6 +45,7 @@
 BuildGeneStatList <- function(inD,
                               cl,
                               assayType="",
+                              assaySlot="",
                               exponent=2,
                               pseudocount=1) {
   if (!require(scClustViz)) {
@@ -54,11 +63,11 @@ BuildGeneStatList <- function(inD,
             "https://github.com/BaderLab/scClustViz/issues, thanks!"),
       sep="\n  "))
   }
-  if (is.null(colnames(scClustViz::getExpr(inD,assayType))) |
-      is.null(rownames(scClustViz::getExpr(inD,assayType)))) {
-    stop("Gene expression matrix returned by 'scClustViz::getExpr(inD,assayType)' is missing col/rownames.")
+  if (is.null(colnames(getExpr(inD,assayType,assaySlot))) |
+      is.null(rownames(getExpr(inD,assayType,assaySlot)))) {
+    stop("Gene expression matrix returned by 'getExpr(inD,assayType,assaySlot)' is missing col/rownames.")
   }
-  if (length(cl) != ncol(scClustViz::getExpr(inD,assayType))) {
+  if (length(cl) != ncol(scClustViz::getExpr(inD,assayType,assaySlot))) {
     stop(paste("cl must be a factor where each value is the cluster assignment",
                "for a cell (column) in the input gene expression matrix.",
                sep="\n  "))
@@ -66,8 +75,9 @@ BuildGeneStatList <- function(inD,
   if (is.character(cl) | is.numeric(cl)) {
     cl <- as.factor(cl)
   }
-  if (!all(names(cl) == colnames(scClustViz::getExpr(inD,assayType))) | is.null(names(cl))) {
-    names(cl) <- colnames(scClustViz::getExpr(inD,assayType))
+  if (!all(names(cl) == colnames(scClustViz::getExpr(inD,assayType,assaySlot))) |
+      is.null(names(cl))) {
+    names(cl) <- colnames(scClustViz::getExpr(inD,assayType,assaySlot))
   }
   if (any(grepl("_",levels(cl)))) {
     stop("Cluster names cannot contain '_' due to internal naming conventions.")
@@ -76,7 +86,9 @@ BuildGeneStatList <- function(inD,
     stop("Cluster names cannot contain '~' due to internal naming conventions.")
   }
 
-  temp <- scClustViz:::fx_calcCGS(nge=scClustViz::getExpr(inD,assayType),
+  temp <- scClustViz:::fx_calcCGS(nge=scClustViz::getExpr(inD,
+                                                          assayType,
+                                                          assaySlot),
                                   cl=cl,
                                   exponent=2,
                                   pseudocount=1)
