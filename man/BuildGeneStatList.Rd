@@ -4,7 +4,14 @@
 \alias{BuildGeneStatList}
 \title{Build cluster-wise list of gene expression statistics from scRNAseq data}
 \usage{
-BuildGeneStatList(inD, cl, assayType = "", exponent = 2, pseudocount = 1)
+BuildGeneStatList(
+  inD,
+  cl,
+  assayType = "",
+  assaySlot = "",
+  exponent = 2,
+  pseudocount = 1
+)
 }
 \arguments{
 \item{inD}{The input dataset. An object of class \code{\link[Seurat]{seurat}}
@@ -20,6 +27,15 @@ for other data objects here!}}
 vector representing the assay slot in which the expression data is stored
 in the input object. This is not required for Seurat v1 or v2 objects. See
 \code{\link[scClustViz]{getExpr}} for details.}
+
+\item{assaySlot}{An optional length-one character vector representing
+the slot of the Seurat v3 \code{\link[Seurat]{Assay}} object to use. Not
+used for other single-cell data objects. The default is to use the
+normalized data in the "data" slot, but you can also use the
+\code{\link[Seurat]{SCTransform}}-corrected counts by setting
+\code{assayType = "SCT"} and \code{assaySlot = "counts"}. This is
+recommended, as it will speed up differential expression
+calculations. See \code{\link{getExpr}} for details.}
 
 \item{exponent}{Default = 2. A length-one numeric vector representing the
 base of the log-normalized gene expression data to be processed. Generally
