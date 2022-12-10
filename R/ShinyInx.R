@@ -28,9 +28,9 @@ ViewCCInx <- function(INX,
   }
 
   ui <- pageWithSidebar(
-    tags$head(includeHTML(includeHeadHTML)),
-    headerPanel("CCInx Viewer"),
+    titlePanel("CCInx Viewer"),
     sidebarPanel(
+      tags$head(includeHTML(includeHeadHTML)),
       fluidRow(
         column(6,
                uiOutput("cellTypesA"),
